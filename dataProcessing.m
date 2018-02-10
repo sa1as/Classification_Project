@@ -131,7 +131,7 @@ for i = 1:length(noFailure)
 end
 
 
-feature_array_noFailure = featExtract(updatedNoFailure);
+feature_array_noFailure = featExtract(updatedNoFailure); % extract features
 feature_array_failure = featExtract(failure);
 
 %% train classifier 
@@ -139,51 +139,29 @@ feature_array_failure = featExtract(failure);
 % don't forget to normalize data although there are of equal length and
 % might not be necessary 
 
-%% -------- Train SVM choosing a Kernel ----------  
+classifier = 1; % choose classifier "1" for SVM
 
-if RUNSVM == 1 
-    %[1, 5, 9, 10, 13, 23];
-    %FeatureVector = [5, 9, 10, 13, 23];
-    TrainFeat = [feature_array_failure(1:350,:); feature_array_noFailure(301:650,:)];
-    TrainingLabels = [ones(350,1); zeros(350,1)];
-    TestingLabels = [ones(150,1); zeros(150,1)];
-    TestingFeatures = [feature_array_failure(351:500,:); feature_array_noFailure(501:650,:)];
-    
-    %TrainFeat = TrainingFeatures(:,FeatureVector);
-    
-    SVM = fitcsvm(TrainFeat, TrainingLabels, 'BoxConstraint', 1, 'KernelFunction','rbf', 'KernelScale', 'auto');
-    [PredicitionLabels, PredictionScores] = predict(SVM, TestingFeatures);
+FeatureVector = [1:24]; % choose feature vector for training out of 24 pre-calculated features
+trainingVectorSize = 10000; % define size of training vector
+testingVectorSize = 100;
 
-    SV = SVM.SupportVectors;
-    SVM.SupportVectorLabels;
+randomSample = randsample(length(feature_array_failure), trainingVectorSize); % randomly choose class one (failure) samples for training
+trainingFailureFeatureVector = feature_array_failure(randomSample, FeatureVector);
+randomSample2 = randsample( setdiff(1:length(feature_array_failure), randomSample), testingVectorSize)'; % randomly choose class one (failure) samples for training
+testingFailureFeatureVector = feature_array_failure(randomSample2,FeatureVector); 
 
-    if plotVar == 1
-    %%{
-    % plot training data points
-    gscatter(TrainingFeatures(:,FeatureVector(1)), TrainingFeatures(:,FeatureVector(2)), TrainingLabels, 'rb');  % plot training data by group -> gives different colours
-    hold on
-    plot(SV(:,1),SV(:,2),'ko','MarkerSize',10);
+randomSample = randsample(length(feature_array_failure), trainingVectorSize); % randomly choose class two (noFailure) sample for training
+trainingNoFailureFeatureVector = feature_array_noFailure(randomSample, FeatureVector);
+randomSample2 = randsample( setdiff(1:length(feature_array_noFailure), randomSample), testingVectorSize)'; % randomly choose class one (failure) samples for training
+testingNoFailureFeatureVector = feature_array_noFailure(randomSample2,FeatureVector); 
 
-    % plot SVM hyperplane
-        d = 0.1;
-        [x1Grid,x2Grid] = meshgrid(-5:d:5, -5:d:5);
-        xGrid = [x1Grid(:),x2Grid(:)];
-        [~,scores] = predict(SVM, xGrid);
-        contour(x1Grid,x2Grid,reshape(scores(:,2),size(x1Grid)),[0 0],'k');
-        gscatter(TestingFeatures(:,FeatureVector(1)), TestingFeatures(:,FeatureVector(2)), TestingLabels, 'gk'); % plot testing data
-        %}
-    end
-    
-    Predictions = ~xor(TestingLabels, PredicitionLabels); % correct predictions vec
-    PredNum = sum(Predictions); % correct prediction num 
-    Accuracy = sum(PredNum/size(TestingLabels, 1))
-    
-    misslabeled = find(Predictions == 0);
-    FalseNegatives = size(find(PredicitionLabels(misslabeled) == 0), 1)
-    FalsePositives = size(find(PredicitionLabels(misslabeled) == 1), 1)
-    figure, plotconfusion(TestingLabels',PredicitionLabels')
+trainingLabels = [zeros(trainingVectorSize,1); ones(trainingVectorSize,1)];
+testingLabels = [zeros(testingVectorSize,1); ones(testingVectorSize,1)];
+%testingLabels = [zeros(trainingVectorSize,1); ones(trainingVectorSize,1)];
+trainFeat = [trainingFailureFeatureVector; trainingNoFailureFeatureVector]; %final training feature vector combined 
+testingFeat = [testingFailureFeatureVector; testingNoFailureFeatureVector]; %final training feature vector combined 
+%testingFeat = [trainingFailureFeatureVector; trainingNoFailureFeatureVector]; %final training feature vector combined 
 
 
-end
-
+learnAndTest(trainFeat, trainingLabels,testingFeat ,testingLabels, classifier)
 
